@@ -390,7 +390,7 @@ done < "$USERS_FILE"
 
 # ===================== RESUMO (somente se --A --SUMMARY) =====================
 if [[ "$MODE" == "a" && "$SUMMARY" -eq 1 ]]; then
-  if [[ "${#SUMMARY_MAP[@]}" -gt 0 ]]; então
+  if [[ "${#SUMMARY_MAP[@]}" -gt 0 ]]; then
     printf "\n# TOTAL:\n"
     {
       for key in "${!SUMMARY_MAP[@]}"; do
