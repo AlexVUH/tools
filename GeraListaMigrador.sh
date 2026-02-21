@@ -322,7 +322,7 @@ if [[ "$MODE" == "soa" ]]; then
   # 1) Tenta +short (uma linha)
   SOA_OUT="$("$DIG_BIN" "$DOMAIN" SOA +short +time=3 +tries=1 2>/dev/null || true)"
 
-  # 2) Se vazio, tenta ANSWER (extrai RDATA do SOA: colunas 5..NF)
+  # 2) Se vazio, tenta ANSWER (RDATA SOA)
   if [[ -z "$SOA_OUT" ]]; then
     SOA_OUT="$("$DIG_BIN" "$DOMAIN" SOA +noall +answer +time=3 +tries=1 2>/dev/null \
       | awk '$4=="SOA"{for (i=5;i<=NF;i++) printf ((i>5?" ":"") $i); print ""}' || true)"
@@ -334,18 +334,26 @@ if [[ "$MODE" == "soa" ]]; then
       | awk '$4=="SOA"{for (i=5;i<=NF;i++) printf ((i>5?" ":"") $i); print ""}' || true)"
   fi
 
-  # 4) Se mesmo assim vazio, verifica status para imprimir "NXDOMAIN" ou '-'
+  # 4) Se ainda vazio, classifica pelo status do cabeçalho
   if [[ -z "$SOA_OUT" ]]; then
     STATUS="$("$DIG_BIN" "$DOMAIN" SOA +noall +comments 2>/dev/null \
-      | sed -n 's/.*status:[[:space:]]*\([A-Z][A-Z0-9]*\).*/\1/p' | head -n1 || true)"
-    if [[ "$STATUS" == "NXDOMAIN" ]]; then
-      SOA_OUT="NXDOMAIN"
-    else
-      SOA_OUT="-"
-    fi
+      | sed -n 's/.*status:[[:space:]]*\\([A-Z][A-Z0-9]*\\).*/\\1/p' | head -n1 || true)"
+
+    case "$STATUS" in
+      NXDOMAIN)
+        SOA_OUT="NXDOMAIN"
+        ;;
+      SERVFAIL|REFUSED|FORMERR|NOTAUTH|NOTIMP|YXDOMAIN)
+        # >>> Sai com o status literal (ex.: REFUSED), em vez de '-'
+        SOA_OUT="$STATUS"
+        ;;
+      *)
+        SOA_OUT="-"
+        ;;
+    esac
   fi
 
-  # 5) Junta múltiplas linhas (caso existam) e imprime CSV sem aspas
+  # 5) Junta múltiplas linhas (se houver) e imprime CSV sem aspas
   SOA_JOINED="$(printf '%s' "$SOA_OUT" | paste -sd '; ' -)"
   printf "%s,%s,%s\n" "$USER" "$DOMAIN" "$SOA_JOINED"
 
